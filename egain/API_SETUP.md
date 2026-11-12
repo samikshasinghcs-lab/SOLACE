@@ -10,7 +10,7 @@ Copy `.env.example` into your deployment secret manager and fill in values from 
 - `EGAIN_API_DOMAIN`: API domain shown in metadata.
 - `EGAIN_CLIENT_ID` and `EGAIN_CLIENT_SECRET`: server-side credentials.
 - `EGAIN_PORTAL_ID`: portal identifier, e.g. `PZ-...`.
-- `EGAIN_SCOPE`: optional space-separated scopes granted to the client application.
+- `EGAIN_SCOPE`: required space-separated application scopes assigned to the client application.
 - `EGAIN_LANGUAGE`: language code, default `en-US`.
 
 Never expose credentials in browser JavaScript, commit them, or paste them into chat.
