@@ -1,11 +1,9 @@
 """Authenticated client for eGain AI Knowledge Hub retrieval APIs.
 
-The eGain Knowledge Hub remains the source of truth. This module retrieves
-source chunks only; it deliberately does not generate policy answers.
-Configure token/API URLs from the eGain tenant's Client Application metadata.
+Retrieves source chunks only; it deliberately does not generate policy answers.
+Tenant-specific endpoints must come from eGain Client Application metadata.
 """
 from __future__ import annotations
-
 import json
 import os
 import threading
@@ -33,11 +31,8 @@ class EGainKnowledgeClient:
 
     def _config(self):
         required = (
-            "EGAIN_TOKEN_URL",
-            "EGAIN_API_DOMAIN",
-            "EGAIN_CLIENT_ID",
-            "EGAIN_CLIENT_SECRET",
-            "EGAIN_PORTAL_ID",
+            "EGAIN_TOKEN_URL", "EGAIN_API_DOMAIN", "EGAIN_CLIENT_ID",
+            "EGAIN_CLIENT_SECRET", "EGAIN_PORTAL_ID", "EGAIN_SCOPE",
         )
         missing = [key for key in required if not self.environ.get(key)]
         if missing:
@@ -53,10 +48,8 @@ class EGainKnowledgeClient:
                 "grant_type": "client_credentials",
                 "client_id": cfg["EGAIN_CLIENT_ID"],
                 "client_secret": cfg["EGAIN_CLIENT_SECRET"],
+                "scope": cfg["EGAIN_SCOPE"],
             }
-            scope = self.environ.get("EGAIN_SCOPE")
-            if scope:
-                form["scope"] = scope
             req = Request(
                 cfg["EGAIN_TOKEN_URL"],
                 data=urlencode(form).encode("utf-8"),
@@ -72,35 +65,25 @@ class EGainKnowledgeClient:
             return token
 
     def retrieve(self, query, language=None):
-        """Return eGain-retrieved knowledge chunks and source metadata."""
         if not isinstance(query, str) or not query.strip():
             raise ValueError("query must be a non-empty string")
         cfg = self._config()
         lang = language or self.environ.get("EGAIN_LANGUAGE", "en-US")
         params = urlencode({"q": query.strip(), "$lang": lang})
-        base = cfg["EGAIN_API_DOMAIN"].rstrip("/")
-        portal = cfg["EGAIN_PORTAL_ID"]
-        url = f"{base}/core/aiservices/v4/{portal}/retrieve?{params}"
+        url = f"{cfg['EGAIN_API_DOMAIN'].rstrip('/')}/core/aiservices/v4/{cfg['EGAIN_PORTAL_ID']}/retrieve?{params}"
         req = Request(
             url,
-            headers={
-                "Authorization": "Bearer " + self._access_token(),
-                "Accept": "application/json",
-            },
+            headers={"Authorization": "Bearer " + self._access_token(), "Accept": "application/json"},
             method="POST",
         )
-        data = self._json_request(req)
         return {
             "provider": "eGain AI Knowledge Hub",
             "mode": "retrieval_only",
             "query": query.strip(),
             "language": lang,
-            "results": data,
+            "results": self._json_request(req),
             "answer_generation": False,
-            "grounding_policy": (
-                "Generate no policy answer unless grounded in these retrieved "
-                "approved sources; abstain and escalate when evidence is missing."
-            ),
+            "grounding_policy": "Use only retrieved approved sources; abstain and escalate if evidence is missing, stale, contradictory or irrelevant.",
         }
 
     def _json_request(self, request):
