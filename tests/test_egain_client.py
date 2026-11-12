@@ -39,6 +39,7 @@ class EGainClientTests(unittest.TestCase):
             "EGAIN_CLIENT_ID": "client",
             "EGAIN_CLIENT_SECRET": "secret",
             "EGAIN_PORTAL_ID": "PZ-123",
+            "EGAIN_SCOPE": "app.core.aiservices.read app.knowledge.portalmgr.read",
             "EGAIN_LANGUAGE": "en-US",
         }
         self.opener = FakeOpener()
