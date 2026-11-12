@@ -1,42 +1,45 @@
 # eGain Knowledge Hub API setup
 
-SOLACE can retrieve approved knowledge chunks directly from eGain's AI Knowledge Hub. This implementation uses eGain's documented OAuth 2.0 client-credentials flow and the AI Services Retrieve API. It does not hard-code a tenant URL: obtain the Authorization URL, Token URL and API domain from the eGain Client Application metadata for your tenant.
+SOLACE retrieves approved knowledge chunks from eGain AI Knowledge Hub using OAuth 2.0 client credentials and the documented AI Services Retrieve API. Obtain tenant-specific endpoints from eGain Client Application metadata.
 
 ## Environment variables
 
-Copy `.env.example` into your deployment secret manager and fill in values from eGain:
-
-- `EGAIN_TOKEN_URL`: token endpoint shown in Client Application metadata.
-- `EGAIN_API_DOMAIN`: API domain shown in metadata.
+- `EGAIN_TOKEN_URL`: token endpoint from eGain metadata.
+- `EGAIN_API_DOMAIN`: API domain from metadata.
 - `EGAIN_CLIENT_ID` and `EGAIN_CLIENT_SECRET`: server-side credentials.
-- `EGAIN_PORTAL_ID`: portal identifier, e.g. `PZ-...`.
-- `EGAIN_SCOPE`: required space-separated application scopes assigned to the client application.
-- `EGAIN_LANGUAGE`: language code, default `en-US`.
+- `EGAIN_PORTAL_ID`: knowledge portal identifier.
+- `EGAIN_SCOPE`: space-separated scopes assigned to the app (typically `app.knowledge.portalmgr.read app.core.aiservices.read`).
+- `EGAIN_LANGUAGE`: language code, defaults to `en-US`.
+- `SOLACE_API_KEY`: shared key required by SOLACE's server-side retrieval route.
 
 Never expose credentials in browser JavaScript, commit them, or paste them into chat.
 
-## eGain console steps
+## Setup
 
-1. In the eGain Administration Console, open the relevant Partition and create a Client Application under Integration.
-2. Grant only the required knowledge retrieval scopes (the eGain developer quickstart documents `app.knowledge.portalmgr.read` and `app.core.aiservices.read` for Answers/Retrieve/Search use).
-3. Use the Client Application metadata to copy the tenant-specific token URL and API domain.
-4. Obtain the portal ID and ensure the app can read the intended published knowledge portal and language.
-5. Add the settings above to the server's secret manager.
-6. Run the retrieval tests, then make a live request using a non-sensitive test question.
-7. Verify that each returned chunk includes traceable source metadata before using it to ground a customer-facing response.
+1. In eGain Administration Console, create a Client Application in the relevant Partition.
+2. Grant only the knowledge retrieval scopes required by the API.
+3. Copy the Token URL and API Domain from that application's Metadata panel.
+4. Confirm the portal ID, published content permissions and language.
+5. Store the settings in the server's environment/secret manager.
+6. Test with a non-sensitive query and verify returned source metadata.
 
-## Retrieval-first response policy
+## SOLACE retrieval endpoint
 
-The client calls:
+`POST /api/knowledge/retrieve`
 
-`POST {EGAIN_API_DOMAIN}/core/aiservices/v4/{EGAIN_PORTAL_ID}/retrieve?q=...&$lang=...`
+Headers: `Content-Type: application/json`, `X-API-Key: <SOLACE_API_KEY>`
 
-with an OAuth bearer token. It returns retrieved source material only; it does not turn retrieved text into legal, financial or government advice. The application layer must cite the returned sources, apply the approved response policy, and abstain/escalate if retrieval is empty, stale, contradictory or irrelevant.
+Body:
+```json
+{"query":"How do I report a lost document?","language":"en-US"}
+```
 
-The exact token URL and API domain vary by tenant. Do not infer them from examples.
+The endpoint returns eGain retrieval results only. It requires the SOLACE API key and fails closed if the eGain tenant configuration is missing. It does not invent or generate an answer. The caller must ground any customer-facing response in the returned approved sources and abstain/escalate when evidence is missing, stale, contradictory or irrelevant.
+
+`GET /egain/health` reports whether retrieval configuration is present; it does not validate live credentials.
 
 ## Official documentation
 
 - [eGain API quickstart](https://apidev.egain.com/developer-portal/get-started/quickstart)
-- [eGain API authentication overview](https://apidev.egain.com/developer-portal/api-overview)
-- [eGain Knowledge Hub Portal Manager API](https://apidev.egain.com/developer-portal/guides/knowledge/knowledge)
+- [eGain API authentication guide](https://apidev.egain.com/developer-portal/get-started/authentication_guide)
+- [eGain client credentials flow](https://apidev.egain.com/developer-portal/guides/authentication/client-credentials-flow)
